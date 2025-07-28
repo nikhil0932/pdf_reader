@@ -1,0 +1,288 @@
+<% content_for :title, "Data View - #{@pdf_document.title}" %>
+
+<div class="container mx-auto px-4 py-8">
+  <div class="flex items-center mb-8">
+    <%= link_to @pdf_document, class: "text-blue-500 hover:text-blue-700 mr-4" do %>
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+      </svg>
+    <% end %>
+    <h1 class="text-3xl font-bold text-gray-800">Complete Data View</h1>
+  </div>
+
+  <!-- Document Header -->
+  <div class="bg-white shadow-md rounded-lg p-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Document Title</label>
+        <p class="text-lg font-semibold text-gray-900"><%= @pdf_document.title %></p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Pages</label>
+        <p class="text-lg text-gray-900"><%= @pdf_document.page_count || "Unknown" %></p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">File Size</label>
+        <p class="text-lg text-gray-900">
+          <% if @pdf_document.file.attached? %>
+            <%= number_to_human_size(@pdf_document.file.byte_size) %>
+          <% else %>
+            Unknown
+          <% end %>
+        </p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Uploaded</label>
+        <p class="text-lg text-gray-900"><%= @pdf_document.uploaded_at&.strftime("%m/%d/%Y") %></p>
+      </div>
+    </div>
+  </div>
+
+  <% if @pdf_document.content.present? && !@pdf_document.content.include?("Error processing PDF") %>
+    <!-- Extracted Key Information -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      <!-- Key Information Card -->
+      <div class="bg-white shadow-md rounded-lg p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+          <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          Key Information
+        </h2>
+        
+        <div class="space-y-4">
+          <div class="border-l-4 border-blue-500 pl-4">
+            <label class="block text-sm font-medium text-gray-600">Licensor/Owner</label>
+            <p class="text-gray-900 font-medium">
+              <%= @pdf_document.licensor.present? ? @pdf_document.licensor : "Not found" %>
+            </p>
+          </div>
+          
+          <div class="border-l-4 border-green-500 pl-4">
+            <label class="block text-sm font-medium text-gray-600">Licensee/Tenant</label>
+            <p class="text-gray-900 font-medium">
+              <%= @pdf_document.licensee.present? ? @pdf_document.licensee : "Not found" %>
+            </p>
+          </div>
+          
+          <div class="border-l-4 border-purple-500 pl-4">
+            <label class="block text-sm font-medium text-gray-600">Property Address</label>
+            <p class="text-gray-900 font-medium">
+              <%= @pdf_document.address.present? ? @pdf_document.address : "Not found" %>
+            </p>
+          </div>
+          
+          <div class="border-l-4 border-yellow-500 pl-4">
+            <label class="block text-sm font-medium text-gray-600">Agreement Date</label>
+            <p class="text-gray-900 font-medium">
+              <%= @pdf_document.agreement_date.present? ? @pdf_document.agreement_date.strftime("%B %d, %Y") : "Not found" %>
+            </p>
+          </div>
+          
+          <div class="border-l-4 border-red-500 pl-4">
+            <label class="block text-sm font-medium text-gray-600">Agreement Period</label>
+            <p class="text-gray-900 font-medium">
+              <%= @pdf_document.agreement_period.present? ? @pdf_document.agreement_period : "Not found" %>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Statistics Card -->
+      <div class="bg-white shadow-md rounded-lg p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+          <svg class="w-6 h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          </svg>
+          Document Statistics
+        </h2>
+        
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-blue-50 p-4 rounded-lg">
+            <p class="text-2xl font-bold text-blue-600"><%= @pdf_document.content.length %></p>
+            <p class="text-sm text-blue-800">Characters</p>
+          </div>
+          
+          <div class="bg-green-50 p-4 rounded-lg">
+            <p class="text-2xl font-bold text-green-600"><%= @pdf_document.content.split.length %></p>
+            <p class="text-sm text-green-800">Words</p>
+          </div>
+          
+          <div class="bg-purple-50 p-4 rounded-lg">
+            <p class="text-2xl font-bold text-purple-600"><%= @pdf_document.content.lines.count %></p>
+            <p class="text-sm text-purple-800">Lines</p>
+          </div>
+          
+          <div class="bg-yellow-50 p-4 rounded-lg">
+            <p class="text-2xl font-bold text-yellow-600">
+              <%= @pdf_document.filtered_data.present? ? @pdf_document.filtered_data.lines.count : 0 %>
+            </p>
+            <p class="text-sm text-yellow-800">Data Points</p>
+          </div>
+        </div>
+
+        <div class="mt-6 space-y-3">
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-600">Data Extraction Success:</span>
+            <span class="font-medium <%= @pdf_document.filtered_data.present? ? 'text-green-600' : 'text-red-600' %>">
+              <%= @pdf_document.filtered_data.present? ? 'Yes' : 'No' %>
+            </span>
+          </div>
+          
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-600">Processing Status:</span>
+            <span class="font-medium text-green-600">Complete</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- All Filtered Data -->
+    <% if @pdf_document.filtered_data.present? %>
+      <div class="bg-white shadow-md rounded-lg p-6 mb-8">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-xl font-semibold text-gray-800 flex items-center">
+            <svg class="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.871 4A17.926 17.926 0 003 12c0 2.874.673 5.59 1.871 8m14.13 0a17.926 17.926 0 001.87-8 17.926 17.926 0 00-1.87-8M4.871 4A17.926 17.926 0 0112 3c2.874 0 5.59.673 8 1.871M4.871 4A17.926 17.926 0 0112 3c2.874 0 5.59.673 8 1.871"></path>
+            </svg>
+            Complete Filtered Data
+          </h2>
+          <button onclick="copyToClipboard('all-filtered-data')" class="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded text-sm transition duration-200">
+            Copy All Data
+          </button>
+        </div>
+        
+        <div id="all-filtered-data" class="bg-indigo-50 p-6 rounded-lg border border-indigo-200">
+          <pre class="text-indigo-800 whitespace-pre-wrap font-mono text-sm leading-relaxed"><%= @pdf_document.filtered_data %></pre>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Full Text Content -->
+    <div class="bg-white shadow-md rounded-lg p-6">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-semibold text-gray-800 flex items-center">
+          <svg class="w-6 h-6 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          Complete Extracted Text
+        </h2>
+        <div class="flex space-x-2">
+          <button onclick="copyToClipboard('full-text-content')" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded text-sm transition duration-200">
+            Copy Text
+          </button>
+          <button onclick="toggleFullText()" id="toggle-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-sm transition duration-200">
+            Show Full Text
+          </button>
+        </div>
+      </div>
+      
+      <div id="full-text-content" class="bg-gray-50 p-6 rounded-lg border text-gray-800 whitespace-pre-wrap font-mono text-sm leading-relaxed max-h-60 overflow-y-auto transition-all duration-300">
+<%= @pdf_document.content %>
+      </div>
+    </div>
+
+  <% elsif @pdf_document.content.present? && @pdf_document.content.include?("Error processing PDF") %>
+    <!-- Error State -->
+    <div class="bg-white shadow-md rounded-lg p-6">
+      <div class="text-center py-12">
+        <svg class="mx-auto h-16 w-16 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+        </svg>
+        <h3 class="mt-4 text-lg font-medium text-gray-900">Processing Error</h3>
+        <p class="mt-2 text-sm text-gray-500"><%= @pdf_document.content %></p>
+        <div class="mt-6">
+          <%= link_to "Reprocess Document", reprocess_pdf_document_path(@pdf_document), method: :patch,
+              confirm: "This will re-extract and filter the PDF data. Continue?",
+              class: "bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition duration-200" %>
+        </div>
+      </div>
+    </div>
+
+  <% else %>
+    <!-- Processing State -->
+    <div class="bg-white shadow-md rounded-lg p-6">
+      <div class="text-center py-12">
+        <div class="flex justify-center mb-4">
+          <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
+        </div>
+        <h3 class="mt-4 text-lg font-medium text-gray-900">Processing PDF...</h3>
+        <p class="mt-2 text-sm text-gray-500">
+          Text extraction and data filtering is in progress. This page will automatically refresh when complete.
+        </p>
+        <div class="mt-6">
+          <button onclick="location.reload()" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-200">
+            Check Status
+          </button>
+        </div>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Action Buttons -->
+  <div class="mt-8 flex flex-wrap gap-4 justify-center">
+    <%= link_to "Back to Document", @pdf_document, 
+        class: "bg-gray-500 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded transition duration-200" %>
+    
+    <% if @pdf_document.file.attached? %>
+      <%= link_to "Download PDF", rails_blob_path(@pdf_document.file, disposition: "attachment"),
+          class: "bg-green-500 hover:bg-green-700 text-white font-bold py-3 px-6 rounded transition duration-200" %>
+    <% end %>
+    
+    <% if @pdf_document.content.present? %>
+      <%= link_to "Reprocess Data", reprocess_pdf_document_path(@pdf_document), method: :patch,
+          confirm: "This will re-extract and filter the PDF data. Continue?",
+          class: "bg-blue-500 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded transition duration-200" %>
+    <% end %>
+    
+    <%= link_to "All Documents", pdf_documents_path,
+        class: "bg-purple-500 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded transition duration-200" %>
+  </div>
+</div>
+
+<% if @pdf_document.content.blank? || @pdf_document.content.include?("Error processing PDF") %>
+  <meta http-equiv="refresh" content="5">
+<% end %>
+
+<script>
+  function copyToClipboard(elementId) {
+    const content = document.getElementById(elementId).textContent;
+    navigator.clipboard.writeText(content).then(function() {
+      const button = event.target;
+      const originalText = button.textContent;
+      button.textContent = 'Copied!';
+      button.classList.remove('bg-gray-500', 'hover:bg-gray-700', 'bg-blue-500', 'hover:bg-blue-700', 'bg-indigo-500', 'hover:bg-indigo-700');
+      button.classList.add('bg-green-500');
+      
+      setTimeout(function() {
+        button.textContent = originalText;
+        button.classList.remove('bg-green-500');
+        if (originalText.includes('All Data')) {
+          button.classList.add('bg-indigo-500', 'hover:bg-indigo-700');
+        } else if (originalText.includes('Text')) {
+          button.classList.add('bg-gray-500', 'hover:bg-gray-700');
+        } else {
+          button.classList.add('bg-blue-500', 'hover:bg-blue-700');
+        }
+      }, 2000);
+    }).catch(function(err) {
+      console.error('Could not copy text: ', err);
+      alert('Failed to copy text to clipboard');
+    });
+  }
+
+  function toggleFullText() {
+    const container = document.getElementById('full-text-content');
+    const button = document.getElementById('toggle-btn');
+    
+    if (container.classList.contains('max-h-60')) {
+      container.classList.remove('max-h-60');
+      container.classList.add('max-h-none');
+      button.textContent = 'Collapse Text';
+    } else {
+      container.classList.remove('max-h-none');
+      container.classList.add('max-h-60');
+      button.textContent = 'Show Full Text';
+    }
+  }
+</script>

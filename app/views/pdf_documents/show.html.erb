@@ -95,6 +95,11 @@
         <% end %>
 
         <div class="border-t pt-4 space-y-3">
+          <% if @pdf_document.content.present? %>
+            <%= link_to "View All Data", data_view_pdf_document_path(@pdf_document),
+                class: "w-full bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded text-center block transition duration-200" %>
+          <% end %>
+          
           <% if @pdf_document.file.attached? %>
             <%= link_to "Download PDF", rails_blob_path(@pdf_document.file, disposition: "attachment"),
                 class: "w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded text-center block transition duration-200" %>

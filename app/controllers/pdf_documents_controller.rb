@@ -24,6 +24,10 @@ class PdfDocumentsController < ApplicationController
     end
   end
 
+  def data_view
+    @pdf_document = PdfDocument.find(params[:id])
+  end
+
   def destroy
     @pdf_document.destroy
     redirect_to pdf_documents_url, notice: 'PDF document was successfully deleted.'

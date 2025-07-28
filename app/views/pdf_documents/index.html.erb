@@ -53,7 +53,12 @@
           <% end %>
           
           <%= link_to "View Details", pdf_document_path(pdf_document),
-              class: "inline-block bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded text-sm transition duration-200" %>
+              class: "inline-block bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded text-sm transition duration-200 mr-2" %>
+          
+          <% if pdf_document.content.present? %>
+            <%= link_to "All Data", data_view_pdf_document_path(pdf_document),
+                class: "inline-block bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded text-sm transition duration-200" %>
+          <% end %>
         </div>
       <% end %>
     </div>

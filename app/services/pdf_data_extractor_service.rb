@@ -5,7 +5,7 @@ class PdfDataExtractorService
 
   def extract_all_data
     return {} if @content.blank? || @content.include?("Error processing PDF")
-
+byebug
     {
       licensor: extract_licensor,
       licensee: extract_licensee,
