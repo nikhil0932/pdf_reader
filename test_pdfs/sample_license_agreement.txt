@@ -1,0 +1,20 @@
+Sample License Agreement
+
+Licensor: John Doe Property Management
+Address: 123 Main Street, Building A, Flat 101, Sector 15, Delhi, 110001
+
+Licensee: Jane Smith
+Address: 456 Oak Avenue, Apartment 2B, Mumbai, 400001
+
+Agreement Date: 01/04/2025
+Period: 11 Months commencing from 01/04/2025 and ending on 28/02/2026
+
+This is a sample license agreement for testing the PDF processing system.
+The system should extract the licensor, licensee, and other relevant information from this document.
+
+Terms and Conditions:
+1. The licensee shall pay monthly rent of Rs. 25,000
+2. Security deposit of Rs. 50,000 is required
+3. Agreement is renewable upon mutual consent
+
+This document serves as a binding agreement between the parties mentioned above.
