@@ -38,7 +38,9 @@ class PdfDocumentsController < ApplicationController
     
     if @pdf_document.content.present? && !@pdf_document.content.include?("Error processing PDF")
       # Re-extract filtered data from existing content
+
       extractor_service = PdfDataExtractorService.new(@pdf_document.content)
+
       filtered_data = extractor_service.extract_all_data
       
       @pdf_document.update_columns(

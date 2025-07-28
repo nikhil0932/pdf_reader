@@ -5,6 +5,7 @@ Rails.application.routes.draw do
   resources :pdf_documents, except: [:edit, :update] do
     member do
       patch :reprocess
+      get :reprocess
       get :data_view
     end
   end
