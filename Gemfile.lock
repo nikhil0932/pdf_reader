@@ -1,6 +1,7 @@
 GEM
   remote: https://rubygems.org/
   specs:
+    Ascii85 (2.0.1)
     actioncable (7.1.5.1)
       actionpack (= 7.1.5.1)
       activesupport (= 7.1.5.1)
@@ -78,6 +79,7 @@ GEM
       mutex_m
       securerandom (>= 0.3)
       tzinfo (~> 2.0)
+    afm (0.2.2)
     base64 (0.3.0)
     benchmark (0.4.1)
     bigdecimal (3.2.2)
@@ -99,6 +101,7 @@ GEM
     erubi (1.13.1)
     globalid (1.2.1)
       activesupport (>= 6.1)
+    hashery (2.1.2)
     i18n (1.14.7)
       concurrent-ruby (~> 1.0)
     importmap-rails (2.0.3)
@@ -140,6 +143,12 @@ GEM
     nio4r (2.7.4)
     nokogiri (1.17.2-x86_64-linux)
       racc (~> 1.4)
+    pdf-reader (2.14.1)
+      Ascii85 (>= 1.0, < 3.0, != 2.0.0)
+      afm (~> 0.2.1)
+      hashery (~> 2.0)
+      ruby-rc4
+      ttfunk
     pp (0.6.2)
       prettyprint
     prettyprint (0.2.0)
@@ -192,6 +201,7 @@ GEM
       psych (>= 4.0.0)
     reline (0.6.2)
       io-console (~> 0.5)
+    ruby-rc4 (0.1.5)
     securerandom (0.3.2)
     sprockets (4.2.2)
       concurrent-ruby (~> 1.0)
@@ -206,6 +216,8 @@ GEM
     stringio (3.1.7)
     thor (1.4.0)
     timeout (0.4.3)
+    ttfunk (1.8.0)
+      bigdecimal (~> 3.1)
     turbo-rails (2.0.12)
       actionpack (>= 6.0.0)
       railties (>= 6.0.0)
@@ -231,6 +243,7 @@ DEPENDENCIES
   importmap-rails
   jbuilder
   mysql2 (~> 0.5)
+  pdf-reader
   puma (>= 5.0)
   rails (~> 7.1.5, >= 7.1.5.1)
   sprockets-rails
