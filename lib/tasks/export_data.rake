@@ -70,7 +70,7 @@ namespace :export do
       # Headers
       headers = [
         'ID', 'Filename', 'Title', 'Licensor', 'Licensee', 'Address',
-        'Agreement Date', 'Agreement Period', 'Page Count', 'Uploaded At',
+        'Agreement Date', 'Start Date', 'End Date', 'Agreement Period', 'Page Count', 'Uploaded At',
         'Created At', 'Updated At', 'Content Preview', 'Filtered Data Preview'
       ]
       
@@ -86,6 +86,8 @@ namespace :export do
           doc.licensee,
           doc.address,
           doc.agreement_date,
+          doc.start_date,
+          doc.end_date,
           doc.agreement_period,
           doc.page_count,
           doc.uploaded_at,
@@ -95,13 +97,14 @@ namespace :export do
           doc.filtered_data&.truncate(500)
         ], style: [
           nil, nil, nil, wrap_style, wrap_style, wrap_style,
-          date_style, nil, nil, datetime_style,
+          date_style, date_style, date_style, nil, nil, datetime_style,
           datetime_style, datetime_style, wrap_style, wrap_style
         ]
       end
       
       # Column widths
-      sheet.column_widths 5, 25, 25, 30, 30, 40, 15, 20, 10, 20, 20, 20, 50, 50
+      # ID, Filename, Title, Licensor, Licensee, Address, Agreement Date, Start Date, End Date, Agreement Period, Page Count, Uploaded At, Created At, Updated At, Content Preview, Filtered Data Preview
+      sheet.column_widths 5, 25, 25, 30, 30, 40, 15, 15, 15, 20, 10, 20, 20, 20, 50, 50
     end
     
     # Summary sheet
@@ -214,7 +217,7 @@ namespace :export do
     
     CSV.open(output_file, 'w', write_headers: true, headers: [
       'ID', 'Filename', 'Title', 'Licensor', 'Licensee', 'Address',
-      'Agreement Date', 'Agreement Period', 'Page Count', 'Uploaded At',
+      'Agreement Date', 'Start Date', 'End Date', 'Agreement Period', 'Page Count', 'Uploaded At',
       'Created At', 'Updated At', 'Content Preview', 'Filtered Data Preview'
     ]) do |csv|
       
@@ -227,6 +230,8 @@ namespace :export do
           doc.licensee,
           doc.address,
           doc.agreement_date&.strftime('%Y-%m-%d'),
+          doc.start_date&.strftime('%Y-%m-%d'),
+          doc.end_date&.strftime('%Y-%m-%d'),
           doc.agreement_period,
           doc.page_count,
           doc.uploaded_at&.strftime('%Y-%m-%d %H:%M:%S'),
@@ -246,9 +251,7 @@ namespace :export do
     require 'caxlsx'
     
     package = Axlsx::Package.new
-    workbook = package.workbook
-    
-    workbook.add_worksheet(name: "Filtered PDF Documents") do |sheet|
+    workbook = package.workbook      workbook.add_worksheet(name: "Filtered PDF Documents") do |sheet|
       header_style = sheet.styles.add_style(
         bg_color: "366092",
         fg_color: "FFFFFF", 
@@ -256,9 +259,13 @@ namespace :export do
         alignment: { horizontal: :center }
       )
       
+      date_style = sheet.styles.add_style(format_code: "yyyy-mm-dd")
+      datetime_style = sheet.styles.add_style(format_code: "yyyy-mm-dd hh:mm:ss")
+      wrap_style = sheet.styles.add_style(alignment: { wrap_text: true, vertical: :top })
+      
       headers = [
         'ID', 'Filename', 'Title', 'Licensor', 'Licensee', 'Address',
-        'Agreement Date', 'Agreement Period', 'Page Count', 'Uploaded At',
+        'Agreement Date', 'Start Date', 'End Date', 'Agreement Period', 'Page Count', 'Uploaded At',
         'Created At', 'Updated At', 'Content Preview', 'Filtered Data Preview'
       ]
       
@@ -273,6 +280,8 @@ namespace :export do
           doc.licensee,
           doc.address,
           doc.agreement_date,
+          doc.start_date,
+          doc.end_date,
           doc.agreement_period,
           doc.page_count,
           doc.uploaded_at,
@@ -280,10 +289,15 @@ namespace :export do
           doc.updated_at,
           doc.content&.truncate(500),
           doc.filtered_data&.truncate(500)
+        ], style: [
+          nil, nil, nil, wrap_style, wrap_style, wrap_style,
+          date_style, date_style, date_style, nil, nil, datetime_style,
+          datetime_style, datetime_style, wrap_style, wrap_style
         ]
       end
       
-      sheet.column_widths 5, 25, 25, 30, 30, 40, 15, 20, 10, 20, 20, 20, 50, 50
+      # ID, Filename, Title, Licensor, Licensee, Address, Agreement Date, Start Date, End Date, Agreement Period, Page Count, Uploaded At, Created At, Updated At, Content Preview, Filtered Data Preview
+      sheet.column_widths 5, 25, 25, 30, 30, 40, 15, 15, 15, 20, 10, 20, 20, 20, 50, 50
     end
     
     package.serialize(output_file)
