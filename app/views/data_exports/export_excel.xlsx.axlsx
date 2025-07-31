@@ -1,0 +1,111 @@
+wb = xlsx_package.workbook
+
+# Main data sheet
+wb.add_worksheet(name: "PDF Documents") do |sheet|
+  # Define styles
+  header_style = sheet.styles.add_style(
+    bg_color: "366092",
+    fg_color: "FFFFFF", 
+    b: true,
+    alignment: { horizontal: :center }
+  )
+  
+  date_style = sheet.styles.add_style(
+    format_code: "yyyy-mm-dd"
+  )
+  
+  datetime_style = sheet.styles.add_style(
+    format_code: "yyyy-mm-dd hh:mm:ss"
+  )
+  
+  wrap_style = sheet.styles.add_style(
+    alignment: { wrap_text: true, vertical: :top }
+  )
+  
+  # Header row
+  headers = [
+    'ID', 'Filename', 'Title', 'Licensor', 'Licensee', 'Address',
+    'Agreement Date', 'Agreement Period', 'Page Count', 'Uploaded At',
+    'Created At', 'Updated At', 'Content Preview', 'Filtered Data Preview'
+  ]
+  
+  sheet.add_row headers, style: header_style
+  
+  # Data rows
+  @pdf_documents.each do |doc|
+    sheet.add_row [
+      doc.id,
+      doc.filename,
+      doc.title,
+      doc.licensor,
+      doc.licensee,
+      doc.address,
+      doc.agreement_date,
+      doc.agreement_period,
+      doc.page_count,
+      doc.uploaded_at,
+      doc.created_at,
+      doc.updated_at,
+      doc.content&.truncate(500),
+      doc.filtered_data&.truncate(500)
+    ], style: [
+      nil, nil, nil, wrap_style, wrap_style, wrap_style,
+      date_style, nil, nil, datetime_style,
+      datetime_style, datetime_style, wrap_style, wrap_style
+    ]
+  end
+  
+  # Auto-fit columns
+  sheet.column_widths 5, 25, 25, 30, 30, 40, 15, 20, 10, 20, 20, 20, 50, 50
+end
+
+# Summary sheet
+wb.add_worksheet(name: "Summary") do |sheet|
+  title_style = sheet.styles.add_style(
+    b: true, 
+    sz: 16,
+    fg_color: "366092"
+  )
+  
+  header_style = sheet.styles.add_style(
+    b: true,
+    bg_color: "E1E8F0"
+  )
+  
+  # Title
+  sheet.add_row ["PDF Documents Export Summary"], style: title_style
+  sheet.add_row []
+  
+  # Statistics
+  total_docs = @pdf_documents.count
+  with_licensor = @pdf_documents.count { |doc| doc.licensor.present? }
+  with_licensee = @pdf_documents.count { |doc| doc.licensee.present? }
+  with_date = @pdf_documents.count { |doc| doc.agreement_date.present? }
+  with_address = @pdf_documents.count { |doc| doc.address.present? }
+  
+  sheet.add_row ["Statistic", "Count", "Percentage"], style: header_style
+  sheet.add_row ["Total Documents", total_docs, "100%"]
+  sheet.add_row ["Documents with Licensor", with_licensor, "#{(with_licensor.to_f / total_docs * 100).round(1)}%"]
+  sheet.add_row ["Documents with Licensee", with_licensee, "#{(with_licensee.to_f / total_docs * 100).round(1)}%"]
+  sheet.add_row ["Documents with Agreement Date", with_date, "#{(with_date.to_f / total_docs * 100).round(1)}%"]
+  sheet.add_row ["Documents with Address", with_address, "#{(with_address.to_f / total_docs * 100).round(1)}%"]
+  
+  sheet.add_row []
+  sheet.add_row ["Export Date", Date.current.strftime("%Y-%m-%d")]
+  sheet.add_row ["Export Time", Time.current.strftime("%H:%M:%S")]
+  
+  # Recent uploads
+  sheet.add_row []
+  sheet.add_row ["Recent Uploads (Last 10)"], style: header_style
+  sheet.add_row ["Filename", "Upload Date"], style: header_style
+  
+  @pdf_documents.order(created_at: :desc).limit(10).each do |doc|
+    sheet.add_row [
+      doc.filename || doc.title,
+      doc.created_at.strftime("%Y-%m-%d %H:%M")
+    ]
+  end
+  
+  # Auto-fit columns
+  sheet.column_widths 30, 15, 15
+end
