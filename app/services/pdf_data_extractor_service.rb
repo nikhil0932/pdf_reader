@@ -75,7 +75,16 @@ class PdfDataExtractorService
   end
 
   def extract_address
-    # First try to extract from "Property Details:" section
+    # Priority 1: Extract from "Property Description Corporation" pattern
+    property_corp_pattern = /property\s+description\s+corporation\s*:\s*(.+?)(?=\s*(?:licens[eo]r|licensee|agreement|date|period|$))/im
+    property_corp_match = @content.match(property_corp_pattern)
+    
+    if property_corp_match
+      address = extract_address_from_property_description(property_corp_match[1])
+      return address if address.present?
+    end
+    
+    # Priority 2: Extract from "Property Details:" section
     property_details_match = @content.match(/property\s+details\s*:\s*([^:]+?)(?=\s*(?:licens[eo]r|agreement|date|period|$))/im)
     
     if property_details_match
@@ -83,7 +92,7 @@ class PdfDataExtractorService
       return address if address.present?
     end
     
-    # Fallback to other patterns
+    # Priority 3: Fallback to other patterns
     patterns = [
       # Pattern for complete address after "Address:" (multi-line)
       /address\s*:\s*([^:]+?)(?=\s*(?:licens[eo]r|tenant|owner|agreement|period|$))/im,
@@ -358,5 +367,45 @@ class PdfDataExtractorService
     address = address.gsub(/^[,:\s]+|[,:\s]+$/, '').strip
     
     address
+  end
+
+  # Extract address from "Property Description Corporation" pattern
+  # Input: "Pune, Other details: Apartment/Flat No:-, Floor No:-, Building Name:/Pandurang Nagar , Block Sector:Pune-411014, Road:Pune City, City:Yevalewadi, District:Pune, Survey Number : 73/1, Leave and License Months:11"
+  # Output: "Corporation: Pune, Other details: Apartment/Flat No:-, Floor No:-, Building Name:/Pandurang Nagar , Block Sector:Pune-411014, Road:Pune City, City:Yevalewadi, District:Pune, Survey Number : 73/1, Leave and License Months:11"
+  def extract_address_from_property_description(description_text)
+    return nil if description_text.blank?
+    
+    # Clean the text first - normalize whitespace and line breaks
+    text = description_text.strip.gsub(/\s+/, ' ')
+    
+    # Remove "Property Description" prefix if present
+    text = text.gsub(/^property\s+description\s+/i, '')
+    
+    # The address should include "Corporation:" prefix and all the details
+    # Based on your example, we want to keep everything after finding the corporation info
+    
+    # If the text starts with a corporation/location, add "Corporation:" prefix
+    if text.match(/^[^:,]+,\s*other\s+details/i)
+      # Extract the corporation/location part (before "Other details")
+      corp_match = text.match(/^([^,]+),\s*(.+)$/i)
+      if corp_match
+        corporation_part = corp_match[1].strip
+        remaining_details = corp_match[2].strip
+        return "Corporation: #{corporation_part}, #{remaining_details}"
+      end
+    end
+    
+    # If it already has "Corporation:" prefix, return as is
+    if text.match(/^corporation\s*:/i)
+      return text
+    end
+    
+    # If it starts with just location info, add Corporation prefix
+    if text.match(/^[^:]+,/i)
+      return "Corporation: #{text}"
+    end
+    
+    # Fallback: return the cleaned text as is
+    return text.present? ? text : nil
   end
 end

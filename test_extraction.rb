@@ -1,53 +1,57 @@
 #!/usr/bin/env ruby
 
-require_relative 'app/services/pdf_data_extractor_service'
+# Test script for Property Description Corporation address extraction
+require 'bundler/setup'
+require_relative 'config/environment'
 
-# Sample PDF content from the user
-sample_content = <<~PDF_CONTENT
-  RENT AGREEMENT
+# Test content with the Property Description Corporation pattern
+test_content = <<~EOF
+  Sample License Agreement
 
-  Licensor:
-  MRS. NIRALI SHARMA
+  Licensor: John Doe Property Management
+  
+  Property Description Corporation: Pune, Other details: Apartment/Flat No:-, Floor No:-, Building
+  Name:/Pandurang Nagar , Block Sector:Pune-411014, Road:Pune City,
+  City:Yevalewadi, District:Pune, Survey Number : 73/1, Leave and License Months:11
 
-  Flat No.: 5-B
-  Building Name: / Jeevan Sandhya
-  Road: Gandhi Road
-  Sector: 13
-  District: Gandhinagar
-  State: Gujarat
-  Pin: 382013
+  Licensee: Jane Smith
 
-  Licensee:
-  MR. ROHAN JOSHI
+  Agreement Date: 01/04/2025
+  Period: 11 Months commencing from 01/04/2025 and ending on 28/02/2026
+EOF
 
-  Flat No.: 5-B
-  Building Name: / Jeevan Sandhya
-  Road: Gandhi Road
-  Sector: 13
-  District: Gandhinagar
-  State: Gujarat
-  Pin: 382013
-
-  Address:
-  5-B Jeevan Sandhya, Gandhi Road, Sector 13, Gandhinagar, Gujarat - 382013
-
-  Agreement Date: 15/03/2024
-  Agreement Period: 11 Months
-
-  This Agreement is executed on 15th March 2024 between the Licensor and Licensee for a period of 11 months.
-PDF_CONTENT
-
-puts "=" * 60
-puts "TESTING PDF DATA EXTRACTION"
+puts "Testing Property Description Corporation address extraction..."
 puts "=" * 60
 
-extractor = PdfDataExtractorService.new(sample_content)
+extractor = PdfDataExtractorService.new(test_content)
 extracted_data = extractor.extract_all_data
 
-puts "\nExtracted Data:"
-puts "-" * 40
+puts "Original content:"
+puts test_content
+puts "\n" + "=" * 60
 
-puts "Licensor: #{extracted_data[:licensor] || 'Not found'}"
+puts "\nExtracted Data:"
+puts "Licensor: #{extracted_data[:licensor]}"
+puts "Licensee: #{extracted_data[:licensee]}"
+puts "Address: #{extracted_data[:address]}"
+puts "Agreement Date: #{extracted_data[:agreement_date]}"
+puts "Agreement Period: #{extracted_data[:agreement_period]}"
+
+puts "\n" + "=" * 60
+puts "Expected Address Format:"
+puts "Corporation: Pune, Other details: Apartment/Flat No:-, Floor No:-, Building Name:/Pandurang Nagar , Block Sector:Pune-411014, Road:Pune City, City:Yevalewadi, District:Pune, Survey Number : 73/1, Leave and License Months:11"
+
+puts "\n" + "=" * 60
+puts "Test Result:"
+expected_start = "Corporation: Pune, Other details:"
+if extracted_data[:address]&.start_with?(expected_start)
+  puts "✅ SUCCESS: Address extraction working correctly!"
+  puts "✅ Address starts with expected 'Corporation: Pune, Other details:'"
+else
+  puts "❌ FAILED: Address extraction not working as expected"
+  puts "❌ Expected to start with: #{expected_start}"
+  puts "❌ Actual result: #{extracted_data[:address]}"
+end
 puts "Licensee: #{extracted_data[:licensee] || 'Not found'}"
 puts "Address: #{extracted_data[:address] || 'Not found'}"
 puts "Agreement Date: #{extracted_data[:agreement_date] || 'Not found'}"
