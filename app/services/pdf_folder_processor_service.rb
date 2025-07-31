@@ -78,18 +78,12 @@ class PdfFolderProcessorService
       address: extracted_data[:address],
       agreement_date: parse_date(extracted_data[:agreement_date]),
       agreement_period: extracted_data[:agreement_period],
+      start_date: extracted_data[:start_date],
+      end_date: extracted_data[:end_date],
       filtered_data: extracted_data[:filtered_data]
     )
 
-    # Attach the original file
-    if File.exist?(@file_path)
-      pdf_document.file.attach(
-        io: File.open(@file_path),
-        filename: @filename,
-        content_type: 'application/pdf'
-      )
-    end
-
+    # Note: File attachment removed - files are processed from folder but not stored in database
     pdf_document.save
     pdf_document
   end

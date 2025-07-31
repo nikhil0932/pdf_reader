@@ -10,18 +10,14 @@ class PdfDocumentsController < ApplicationController
   end
 
   def new
-    @pdf_document = PdfDocument.new
+    # File upload functionality has been removed
+    # Use batch processing instead: ruby pdf_folder_processor.rb /path/to/folder
+    redirect_to pdf_documents_path, alert: 'Web upload is disabled. Use batch processing instead.'
   end
 
   def create
-    @pdf_document = PdfDocument.new(pdf_document_params)
-    @pdf_document.uploaded_at = Time.current
-
-    if @pdf_document.save
-      redirect_to @pdf_document, notice: 'PDF was successfully uploaded and processed.'
-    else
-      render :new, status: :unprocessable_entity
-    end
+    # File upload functionality has been removed
+    redirect_to pdf_documents_path, alert: 'Web upload is disabled. Use batch processing instead.'
   end
 
   def data_view
@@ -49,14 +45,14 @@ class PdfDocumentsController < ApplicationController
         address: filtered_data[:address],
         agreement_date: filtered_data[:agreement_date],
         agreement_period: filtered_data[:agreement_period],
+        start_date: filtered_data[:start_date],
+        end_date: filtered_data[:end_date],
         filtered_data: filtered_data[:filtered_data]
       )
       
       redirect_to @pdf_document, notice: 'PDF data has been reprocessed and filtered information updated.'
     else
-      # Re-extract everything
-      ExtractPdfTextJob.perform_later(@pdf_document)
-      redirect_to @pdf_document, notice: 'PDF reprocessing started. Please refresh the page in a few moments.'
+      redirect_to @pdf_document, alert: 'Cannot reprocess: No content available or content contains errors.'
     end
   end
 
@@ -64,9 +60,5 @@ class PdfDocumentsController < ApplicationController
 
   def set_pdf_document
     @pdf_document = PdfDocument.find(params[:id])
-  end
-
-  def pdf_document_params
-    params.require(:pdf_document).permit(:title, :file)
   end
 end

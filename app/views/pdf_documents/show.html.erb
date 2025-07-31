@@ -23,8 +23,8 @@
           
           <div class="space-y-3">
             <div>
-              <label class="block text-sm font-medium text-gray-600">Title</label>
-              <p class="text-gray-900"><%= @pdf_document.title %></p>
+              <label class="block text-sm font-medium text-gray-600">Filename</label>
+              <p class="text-gray-900"><%= @pdf_document.filename || "Unknown" %></p>
             </div>
             
             <div>
@@ -35,17 +35,6 @@
             <div>
               <label class="block text-sm font-medium text-gray-600">Uploaded</label>
               <p class="text-gray-900"><%= @pdf_document.uploaded_at&.strftime("%B %d, %Y at %I:%M %p") %></p>
-            </div>
-            
-            <div>
-              <label class="block text-sm font-medium text-gray-600">File Size</label>
-              <p class="text-gray-900">
-                <% if @pdf_document.file.attached? %>
-                  <%= number_to_human_size(@pdf_document.file.byte_size) %>
-                <% else %>
-                  Unknown
-                <% end %>
-              </p>
             </div>
           </div>
         </div>
@@ -100,10 +89,10 @@
                 class: "w-full bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded text-center block transition duration-200" %>
           <% end %>
           
-          <% if @pdf_document.file.attached? %>
-            <%= link_to "Download PDF", rails_blob_path(@pdf_document.file, disposition: "attachment"),
-                class: "w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded text-center block transition duration-200" %>
-          <% end %>
+          <!-- Download functionality removed with Active Storage -->
+          <div class="w-full bg-gray-300 text-gray-600 py-2 px-4 rounded text-center block mb-3">
+            File Download Disabled
+          </div>
           
           <% if @pdf_document.content.present? %>
             <%= link_to "Reprocess Data", reprocess_pdf_document_path(@pdf_document), method: :patch,

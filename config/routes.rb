@@ -1,8 +1,8 @@
 Rails.application.routes.draw do
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
-  # PDF Documents routes
-  resources :pdf_documents, except: [:edit, :update] do
+  # PDF Documents routes (read-only, no upload)
+  resources :pdf_documents, only: [:index, :show, :destroy] do
     member do
       patch :reprocess
       get :reprocess

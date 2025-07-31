@@ -10,7 +10,7 @@ namespace :export do
     
     CSV.open(output_file, 'w', write_headers: true, headers: [
       'ID', 'Filename', 'Title', 'Licensor', 'Licensee', 'Address',
-      'Agreement Date', 'Agreement Period', 'Page Count', 'Uploaded At',
+      'Agreement Date', 'Start Date', 'End Date', 'Agreement Period', 'Page Count', 'Uploaded At',
       'Created At', 'Updated At', 'Content Preview', 'Filtered Data Preview'
     ]) do |csv|
       
@@ -23,6 +23,8 @@ namespace :export do
           doc.licensee,
           doc.address,
           doc.agreement_date&.strftime('%Y-%m-%d'),
+          doc.start_date&.strftime('%Y-%m-%d'),
+          doc.end_date&.strftime('%Y-%m-%d'),
           doc.agreement_period,
           doc.page_count,
           doc.uploaded_at&.strftime('%Y-%m-%d %H:%M:%S'),

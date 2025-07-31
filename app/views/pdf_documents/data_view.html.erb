@@ -22,13 +22,9 @@
         <p class="text-lg text-gray-900"><%= @pdf_document.page_count || "Unknown" %></p>
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-600 mb-1">File Size</label>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Filename</label>
         <p class="text-lg text-gray-900">
-          <% if @pdf_document.file.attached? %>
-            <%= number_to_human_size(@pdf_document.file.byte_size) %>
-          <% else %>
-            Unknown
-          <% end %>
+          <%= @pdf_document.filename || "Unknown" %>
         </p>
       </div>
       <div>
@@ -224,10 +220,7 @@
     <%= link_to "Back to Document", @pdf_document, 
         class: "bg-gray-500 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded transition duration-200" %>
     
-    <% if @pdf_document.file.attached? %>
-      <%= link_to "Download PDF", rails_blob_path(@pdf_document.file, disposition: "attachment"),
-          class: "bg-green-500 hover:bg-green-700 text-white font-bold py-3 px-6 rounded transition duration-200" %>
-    <% end %>
+    <!-- Download functionality removed with Active Storage -->
     
     <% if @pdf_document.content.present? %>
       <%= link_to "Reprocess Data", reprocess_pdf_document_path(@pdf_document), method: :patch,

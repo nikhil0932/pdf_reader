@@ -6,12 +6,17 @@ class PdfDataExtractorService
   def extract_all_data
     return {} if @content.blank? || @content.include?("Error processing PDF")
     
+    # Extract period dates
+    period_dates = extract_period_dates
+    
     {
       licensor: extract_licensor,
       licensee: extract_licensee,
       address: extract_address,
       agreement_date: extract_agreement_date,
       agreement_period: extract_agreement_period,
+      start_date: period_dates[:start_date],
+      end_date: period_dates[:end_date],
       filtered_data: compile_filtered_data
     }
   end
@@ -407,5 +412,77 @@ class PdfDataExtractorService
     
     # Fallback: return the cleaned text as is
     return text.present? ? text : nil
+  end
+
+  def extract_period_dates
+    # Extract start and end dates from period text
+    # Example: "commencing from 01/01/2024 and ending on 30/11/2024"
+    
+    patterns = [
+      # Pattern for "commencing from DATE and ending on DATE"
+      /commencing\s+from\s+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})\s+and\s+ending\s+on\s+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
+      # Pattern for "from DATE to DATE"
+      /from\s+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})\s+(?:to|until)\s+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
+      # Pattern for "starting from DATE and ending DATE"
+      /starting\s+from\s+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})\s+and\s+ending\s+(?:on\s+)?(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
+      # Pattern for "period of X months commencing from DATE and ending on DATE"
+      /period\s+of\s+\d+\s+months?\s+commencing\s+from\s+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})\s+and\s+ending\s+on\s+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
+      # Pattern for "for a period... commencing from DATE and ending on DATE"
+      /for\s+a\s+period[^,]*commencing\s+from\s+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})\s+and\s+ending\s+on\s+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i
+    ]
+    
+    patterns.each do |pattern|
+      match = @content.match(pattern)
+      if match && match[1] && match[2]
+        start_date_str = match[1].strip
+        end_date_str = match[2].strip
+        
+        # Parse the dates
+        start_date = parse_date_string(start_date_str)
+        end_date = parse_date_string(end_date_str)
+        
+        if start_date && end_date
+          return {
+            start_date: start_date,
+            end_date: end_date
+          }
+        end
+      end
+    end
+    
+    # Return empty hash if no dates found
+    { start_date: nil, end_date: nil }
+  end
+
+  def parse_date_string(date_str)
+    return nil if date_str.blank?
+    
+    # Try different date formats
+    date_formats = [
+      '%d/%m/%Y',   # 01/01/2024
+      '%d-%m-%Y',   # 01-01-2024
+      '%d.%m.%Y',   # 01.01.2024
+      '%m/%d/%Y',   # 01/01/2024 (US format)
+      '%Y-%m-%d',   # 2024-01-01
+      '%d %b %Y',   # 01 Jan 2024
+      '%d %B %Y',   # 01 January 2024
+      '%b %d, %Y',  # Jan 01, 2024
+      '%B %d, %Y'   # January 01, 2024
+    ]
+    
+    date_formats.each do |format|
+      begin
+        date = Date.strptime(date_str.strip, format)
+        # Only return dates that seem reasonable (not too old or too far in future)
+        if date.year >= 1990 && date.year <= Date.current.year + 20
+          return date
+        end
+      rescue Date::Error, ArgumentError
+        next
+      end
+    end
+    
+    # If no format matches, return nil
+    nil
   end
 end
