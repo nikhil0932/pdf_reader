@@ -177,3 +177,40 @@ rails export:excel
 ```
 
 Files in the `processed/` folder represent successfully extracted and exported data, while files in `errors/` may need manual review before inclusion in exports.
+
+## Duplicate Detection and Prevention
+
+The system now includes intelligent duplicate detection to prevent storing files with identical license information:
+
+### Automatic Duplicate Detection
+
+During processing, the system will skip files that have exact matches for:
+- **Licensor** (license grantor)
+- **Licensee** (license recipient) 
+- **Start Date** and **End Date** (license period)
+
+If any of these combinations already exist in the database, the new file will be skipped and optionally moved to the processed folder.
+
+### Example Output
+```
+[3/10] Processing: duplicate_license.pdf
+  Skipping - duplicate record found (licensor: ABC Corp, licensee: XYZ Inc, dates: 2024-01-01 to 2024-12-31)
+    → Matches existing record ID: 15 (original_license.pdf)
+  → Moved to processed folder
+```
+
+### Remove Existing Duplicates
+
+To clean up duplicates that may already exist in your database:
+
+```bash
+# Find and remove duplicate records
+rails pdfs:remove_duplicates
+```
+
+This interactive task will:
+- Scan the database for duplicate combinations
+- Show you what duplicates were found
+- Ask for confirmation before removing duplicates
+- Keep the oldest record from each duplicate group
+- Remove the newer duplicate records

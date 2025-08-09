@@ -1,16 +1,18 @@
 namespace :pdfs do
   desc "Process all PDF files from a given folder"
-  task :process_folder, [:folder_path, :move_processed, :move_errors] => :environment do |task, args|
+  task :process_folder, [:folder_path, :move_processed, :move_errors, :skip_similar_dates] => :environment do |task, args|
     folder_path = args[:folder_path]
     move_processed = args[:move_processed] == 'true'
     move_errors = args[:move_errors] == 'true'
+    skip_similar_dates = args[:skip_similar_dates] != 'false' # Default to true unless explicitly set to false
     
     if folder_path.blank?
-      puts "Usage: rails pdfs:process_folder[/path/to/folder,move_processed,move_errors]"
+      puts "Usage: rails pdfs:process_folder[/path/to/folder,move_processed,move_errors,skip_similar_dates]"
       puts "  folder_path: Path to folder containing PDF files"
       puts "  move_processed: true/false - Move successfully processed files to 'processed' subfolder"
       puts "  move_errors: true/false - Move files with errors to 'errors' subfolder"
-      puts "Example: rails pdfs:process_folder[/path/to/pdfs,true,true]"
+      puts "  skip_similar_dates: true/false - Skip files with similar agreement dates (default: true)"
+      puts "Example: rails pdfs:process_folder[/path/to/pdfs,true,true,true]"
       exit 1
     end
     
@@ -32,6 +34,8 @@ namespace :pdfs do
       FileUtils.mkdir_p(errors_folder) unless Dir.exist?(errors_folder)
       puts "Will move files with errors to: #{errors_folder}"
     end
+    
+    puts "Skip similar dates: #{skip_similar_dates ? 'Yes' : 'No'}"
     
     pdf_files = Dir.glob(File.join(folder_path, "*.pdf"))
     
@@ -58,7 +62,7 @@ namespace :pdfs do
         # Check if this file has already been processed by filename
         existing_doc = PdfDocument.find_by(filename: filename)
         if existing_doc
-          puts "  Skipping - already exists in database"
+          puts "  Skipping - already exists in database (filename match)"
           
           # Move to processed folder if requested
           if move_processed && !file_moved
@@ -70,15 +74,35 @@ namespace :pdfs do
           next
         end
         
-        # Create new PDF document record
+        # Create new PDF document record for processing
         pdf_document = PdfDocument.new(
           title: filename,
           filename: filename,
           uploaded_at: Time.current
         )
         
-        # Process the PDF file
+        # Process the PDF file to extract data
         success = process_pdf_file(pdf_document, pdf_path)
+        
+        # Check for duplicate records based on extracted data (licensor, licensee, start_date, end_date)
+        if success && pdf_document.licensor.present? && pdf_document.licensee.present? && 
+           (pdf_document.start_date.present? || pdf_document.end_date.present?)
+          
+          duplicate = find_duplicate_record(pdf_document)
+          if duplicate
+            puts "  Skipping - duplicate record found (licensor: #{pdf_document.licensor}, licensee: #{pdf_document.licensee}, dates: #{pdf_document.start_date} to #{pdf_document.end_date})"
+            puts "    → Matches existing record ID: #{duplicate.id} (#{duplicate.filename})"
+            
+            # Move to processed folder if requested (since it's a known duplicate)
+            if move_processed && !file_moved
+              move_file(pdf_path, processed_folder, filename)
+              moved_processed += 1
+              file_moved = true
+              puts "  → Moved to processed folder"
+            end
+            next
+          end
+        end
         
         if success && pdf_document.save
           processed += 1
@@ -240,6 +264,94 @@ namespace :pdfs do
     puts "  Total files: #{pdf_files.count}"
   end
   
+  desc "Find and remove duplicate PDF documents based on licensor, licensee, and dates"
+  task :remove_duplicates => :environment do
+    puts "Finding duplicate PDF documents..."
+    puts "Checking for duplicates based on: licensor, licensee, start_date, end_date"
+    puts ""
+    
+    total_documents = PdfDocument.count
+    puts "Total documents in database: #{total_documents}"
+    
+    if total_documents == 0
+      puts "No documents found in database"
+      exit 0
+    end
+    
+    duplicates_found = []
+    kept_documents = []
+    
+    # Group documents by licensor, licensee, start_date, end_date
+    PdfDocument.all.group_by do |doc|
+      [
+        doc.licensor&.strip&.downcase,
+        doc.licensee&.strip&.downcase,
+        doc.start_date,
+        doc.end_date
+      ]
+    end.each do |key, documents|
+      # Skip groups with only one document
+      next if documents.length == 1
+      
+      # Skip groups where key fields are missing
+      licensor, licensee, start_date, end_date = key
+      next if licensor.blank? || licensee.blank? || (start_date.blank? && end_date.blank?)
+      
+      puts "Found duplicate group:"
+      puts "  Licensor: #{documents.first.licensor}"
+      puts "  Licensee: #{documents.first.licensee}"
+      puts "  Start Date: #{start_date || 'N/A'}"
+      puts "  End Date: #{end_date || 'N/A'}"
+      puts "  Documents (#{documents.length}):"
+      
+      # Sort by created_at to keep the oldest one
+      sorted_docs = documents.sort_by(&:created_at)
+      keep_doc = sorted_docs.first
+      duplicate_docs = sorted_docs[1..-1]
+      
+      puts "    KEEPING: #{keep_doc.filename} (ID: #{keep_doc.id}, Created: #{keep_doc.created_at.strftime('%Y-%m-%d %H:%M')})"
+      kept_documents << keep_doc
+      
+      duplicate_docs.each do |doc|
+        puts "    REMOVING: #{doc.filename} (ID: #{doc.id}, Created: #{doc.created_at.strftime('%Y-%m-%d %H:%M')})"
+        duplicates_found << doc
+      end
+      puts ""
+    end
+    
+    if duplicates_found.empty?
+      puts "✅ No duplicates found!"
+    else
+      puts "Summary:"
+      puts "  Duplicate documents found: #{duplicates_found.length}"
+      puts "  Documents to keep: #{kept_documents.length}"
+      puts ""
+      
+      print "Do you want to remove these #{duplicates_found.length} duplicate documents? (y/N): "
+      response = STDIN.gets.chomp.downcase
+      
+      if response == 'y' || response == 'yes'
+        removed_count = 0
+        duplicates_found.each do |doc|
+          begin
+            doc.destroy
+            removed_count += 1
+            puts "  ✓ Removed: #{doc.filename}"
+          rescue => e
+            puts "  ✗ Failed to remove #{doc.filename}: #{e.message}"
+          end
+        end
+        
+        puts ""
+        puts "✅ Cleanup complete!"
+        puts "  Documents removed: #{removed_count}"
+        puts "  Documents remaining: #{PdfDocument.count}"
+      else
+        puts "Cleanup cancelled. No documents were removed."
+      end
+    end
+  end
+  
   private
   
   def process_pdf_file(pdf_document, pdf_path)
@@ -304,5 +416,34 @@ namespace :pdfs do
     FileUtils.mv(source_path, destination_path)
   rescue => e
     puts "    Warning: Could not move file to #{destination_folder}: #{e.message}"
+  end
+  
+  def find_duplicate_record(pdf_document)
+    # Look for exact matches on licensor, licensee, and date fields
+    query = PdfDocument.where(
+      licensor: pdf_document.licensor,
+      licensee: pdf_document.licensee
+    )
+    
+    # Add date conditions if available
+    if pdf_document.start_date.present? && pdf_document.end_date.present?
+      # Check for exact start and end date match
+      query = query.where(
+        start_date: pdf_document.start_date,
+        end_date: pdf_document.end_date
+      )
+    elsif pdf_document.start_date.present?
+      # Check for exact start date match
+      query = query.where(start_date: pdf_document.start_date)
+    elsif pdf_document.end_date.present?
+      # Check for exact end date match
+      query = query.where(end_date: pdf_document.end_date)
+    elsif pdf_document.agreement_date.present?
+      # Fallback to agreement date if start/end dates not available
+      query = query.where(agreement_date: pdf_document.agreement_date)
+    end
+    
+    # Return the first matching record
+    query.first
   end
 end
