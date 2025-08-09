@@ -207,3 +207,52 @@ inotifywait -m /path/to/folder -e create --format '%f' | while read file; do
     fi
 done
 ```
+
+## File Organization Features
+
+The system now supports organizing processed files into subfolders based on their processing status:
+
+### Automatic File Moving During Processing
+
+```bash
+# Process files and move them to subfolders based on results
+rails pdfs:process_folder["/path/to/pdfs",true,true]
+
+# Arguments:
+# - folder_path: Path to folder containing PDF files
+# - move_processed: true/false - Move successfully processed files to 'processed' subfolder  
+# - move_errors: true/false - Move files with errors to 'errors' subfolder
+
+# Examples:
+rails pdfs:process_folder["/path/to/pdfs",true,false]   # Only move successful files
+rails pdfs:process_folder["/path/to/pdfs",false,true]   # Only move error files
+rails pdfs:process_folder["/path/to/pdfs",true,true]    # Move both types
+```
+
+### Organize Existing Files
+
+```bash
+# Organize already processed files into subfolders
+rails pdfs:organize_files["/path/to/pdf/folder"]
+```
+
+This will:
+- Move successfully processed files to `processed/` subfolder
+- Move files with processing errors to `errors/` subfolder  
+- Leave unprocessed files in the main folder
+
+### Folder Structure After Organization
+
+```
+pdf_folder/
+├── unprocessed_file1.pdf
+├── unprocessed_file2.pdf
+├── processed/
+│   ├── successfully_processed1.pdf
+│   ├── successfully_processed2.pdf
+│   └── successfully_processed3.pdf
+└── errors/
+    ├── corrupted_file.pdf
+    ├── password_protected.pdf
+    └── invalid_format.pdf
+```
