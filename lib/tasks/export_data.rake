@@ -10,11 +10,24 @@ namespace :export do
     
     CSV.open(output_file, 'w', write_headers: true, headers: [
       'ID', 'Filename', 'Title', 'Licensor', 'Licensee', 'Address',
-      'Agreement Date', 'Start Date', 'End Date', 'Agreement Period', 'Page Count', 'Uploaded At',
-      'Created At', 'Updated At', 'Content Preview', 'Filtered Data Preview'
+      'Agreement Date', 'Start Date', 'End Date', 'Agreement Period', 'Filtered Data Preview'
     ]) do |csv|
       
-      PdfDocument.find_each do |doc|
+      # Sort so that records with empty licensor and licensee appear at the bottom
+      sorted_documents = PdfDocument.all.sort_by do |doc|
+        licensor_present = doc.licensor.present?
+        licensee_present = doc.licensee.present?
+        
+        if licensor_present && licensee_present
+          [0, doc.id] # Both present - sort by ID within this group
+        elsif licensor_present || licensee_present
+          [1, doc.id] # One present - sort by ID within this group  
+        else
+          [2, doc.id] # Both empty - sort by ID within this group (at bottom)
+        end
+      end
+      
+      sorted_documents.each do |doc|
         csv << [
           doc.id,
           doc.filename,
@@ -26,11 +39,6 @@ namespace :export do
           doc.start_date&.strftime('%Y-%m-%d'),
           doc.end_date&.strftime('%Y-%m-%d'),
           doc.agreement_period,
-          doc.page_count,
-          doc.uploaded_at&.strftime('%Y-%m-%d %H:%M:%S'),
-          doc.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-          doc.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
-          doc.content&.truncate(100),
           doc.filtered_data&.truncate(100)
         ]
       end
@@ -70,14 +78,28 @@ namespace :export do
       # Headers
       headers = [
         'ID', 'Filename', 'Title', 'Licensor', 'Licensee', 'Address',
-        'Agreement Date', 'Start Date', 'End Date', 'Agreement Period', 'Page Count', 'Uploaded At',
-        'Created At', 'Updated At', 'Content Preview', 'Filtered Data Preview'
+        'Agreement Date', 'Start Date', 'End Date', 'Agreement Period', 'Filtered Data Preview'
       ]
       
       sheet.add_row headers, style: header_style
       
-      # Data
-      PdfDocument.find_each do |doc|
+      # Data - Sort so that records with empty licensor and licensee appear at the bottom
+      # Custom sorting: records with both licensor and licensee present first,
+      # then records with only one present, then records with both empty
+      sorted_documents = PdfDocument.all.sort_by do |doc|
+        licensor_present = doc.licensor.present?
+        licensee_present = doc.licensee.present?
+        
+        if licensor_present && licensee_present
+          [0, doc.id] # Both present - sort by ID within this group
+        elsif licensor_present || licensee_present
+          [1, doc.id] # One present - sort by ID within this group  
+        else
+          [2, doc.id] # Both empty - sort by ID within this group (at bottom)
+        end
+      end
+      
+      sorted_documents.each do |doc|
         sheet.add_row [
           doc.id,
           doc.filename,
@@ -89,22 +111,16 @@ namespace :export do
           doc.start_date,
           doc.end_date,
           doc.agreement_period,
-          doc.page_count,
-          doc.uploaded_at,
-          doc.created_at,
-          doc.updated_at,
-          doc.content&.truncate(500),
           doc.filtered_data&.truncate(500)
         ], style: [
           nil, nil, nil, wrap_style, wrap_style, wrap_style,
-          date_style, date_style, date_style, nil, nil, datetime_style,
-          datetime_style, datetime_style, wrap_style, wrap_style
+          date_style, date_style, date_style, nil, wrap_style
         ]
       end
       
       # Column widths
-      # ID, Filename, Title, Licensor, Licensee, Address, Agreement Date, Start Date, End Date, Agreement Period, Page Count, Uploaded At, Created At, Updated At, Content Preview, Filtered Data Preview
-      sheet.column_widths 5, 25, 25, 30, 30, 40, 15, 15, 15, 20, 10, 20, 20, 20, 50, 50
+      # ID, Filename, Title, Licensor, Licensee, Address, Agreement Date, Start Date, End Date, Agreement Period, Filtered Data Preview
+      sheet.column_widths 5, 25, 25, 30, 30, 40, 15, 15, 15, 20, 50
     end
     
     # Summary sheet
@@ -217,8 +233,7 @@ namespace :export do
     
     CSV.open(output_file, 'w', write_headers: true, headers: [
       'ID', 'Filename', 'Title', 'Licensor', 'Licensee', 'Address',
-      'Agreement Date', 'Start Date', 'End Date', 'Agreement Period', 'Page Count', 'Uploaded At',
-      'Created At', 'Updated At', 'Content Preview', 'Filtered Data Preview'
+      'Agreement Date', 'Start Date', 'End Date', 'Agreement Period', 'Filtered Data Preview'
     ]) do |csv|
       
       documents.each do |doc|
@@ -233,11 +248,6 @@ namespace :export do
           doc.start_date&.strftime('%Y-%m-%d'),
           doc.end_date&.strftime('%Y-%m-%d'),
           doc.agreement_period,
-          doc.page_count,
-          doc.uploaded_at&.strftime('%Y-%m-%d %H:%M:%S'),
-          doc.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-          doc.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
-          doc.content&.truncate(100),
           doc.filtered_data&.truncate(100)
         ]
       end
@@ -265,8 +275,7 @@ namespace :export do
       
       headers = [
         'ID', 'Filename', 'Title', 'Licensor', 'Licensee', 'Address',
-        'Agreement Date', 'Start Date', 'End Date', 'Agreement Period', 'Page Count', 'Uploaded At',
-        'Created At', 'Updated At', 'Content Preview', 'Filtered Data Preview'
+        'Agreement Date', 'Start Date', 'End Date', 'Agreement Period', 'Filtered Data Preview'
       ]
       
       sheet.add_row headers, style: header_style
@@ -283,21 +292,15 @@ namespace :export do
           doc.start_date,
           doc.end_date,
           doc.agreement_period,
-          doc.page_count,
-          doc.uploaded_at,
-          doc.created_at,
-          doc.updated_at,
-          doc.content&.truncate(500),
           doc.filtered_data&.truncate(500)
         ], style: [
           nil, nil, nil, wrap_style, wrap_style, wrap_style,
-          date_style, date_style, date_style, nil, nil, datetime_style,
-          datetime_style, datetime_style, wrap_style, wrap_style
+          date_style, date_style, date_style, nil, wrap_style
         ]
       end
       
-      # ID, Filename, Title, Licensor, Licensee, Address, Agreement Date, Start Date, End Date, Agreement Period, Page Count, Uploaded At, Created At, Updated At, Content Preview, Filtered Data Preview
-      sheet.column_widths 5, 25, 25, 30, 30, 40, 15, 15, 15, 20, 10, 20, 20, 20, 50, 50
+      # ID, Filename, Title, Licensor, Licensee, Address, Agreement Date, Start Date, End Date, Agreement Period, Filtered Data Preview
+      sheet.column_widths 5, 25, 25, 30, 30, 40, 15, 15, 15, 20, 50
     end
     
     package.serialize(output_file)

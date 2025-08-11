@@ -687,6 +687,7 @@ namespace :pdfs do
     
     puts ""
     puts "Sample problematic records:"
+    puts "-" * 40
     problematic_records.limit(5).each do |record|
       puts "ID: #{record.id} | File: #{record.filename}"
       puts "  Address: #{record.address&.truncate(100)}"
@@ -849,203 +850,6 @@ namespace :pdfs do
     puts "  Total processed: #{target_count}"
   end
 
-  desc "Blank out licensor and licensee fields longer than 200 characters"
-  task :blank_long_fields => :environment do
-    puts "Starting cleanup of licensor and licensee fields longer than 200 characters..."
-    
-    # Count records that will be affected
-    long_licensor_count = PdfDocument.where('LENGTH(licensor) > 150').count
-    long_licensee_count = PdfDocument.where('LENGTH(licensee) > 150').count
-    total_affected = PdfDocument.where('LENGTH(licensor) > 150 OR LENGTH(licensee) > 150').count
-    
-    puts "Records with licensor > 200 chars: #{long_licensor_count}"
-    puts "Records with licensee > 200 chars: #{long_licensee_count}"
-    puts "Total records that will be modified: #{total_affected}"
-    
-    if total_affected == 0
-      puts "No records found with licensor or licensee fields longer than 200 characters."
-      next
-    end
-    
-    print "Do you want to proceed? (y/N): "
-    response = STDIN.gets.chomp.downcase
-    
-    unless response == 'y' || response == 'yes'
-      puts "Operation cancelled."
-      next
-    end
-    
-    updated_count = 0
-    
-    # Update records with long licensor fields
-    PdfDocument.where('LENGTH(licensor) > 150').find_each do |doc|
-      old_licensor = doc.licensor
-      doc.update(licensor: '')
-      updated_count += 1
-      puts "Updated record ID #{doc.id}: Blanked licensor (was #{old_licensor.length} chars)"
-    end
-    
-    # Update records with long licensee fields
-    PdfDocument.where('LENGTH(licensee) > 150').find_each do |doc|
-      old_licensee = doc.licensee
-      doc.update(licensee: '')
-      updated_count += 1
-      puts "Updated record ID #{doc.id}: Blanked licensee (was #{old_licensee.length} chars)" if doc.licensee != doc.licensor
-    end
-    
-    puts "\nCleanup completed!"
-    puts "Total fields blanked: #{updated_count}"
-    
-    # Verify the cleanup
-    remaining_long = PdfDocument.where('LENGTH(licensor) > 150 OR LENGTH(licensee) > 150').count
-    puts "Remaining records with long fields: #{remaining_long}"
-  end
-  
-  desc "Blank out licensor and licensee fields that contain only 'Details'"
-  task :blank_details_fields => :environment do
-    puts "Starting cleanup of licensor and licensee fields containing only 'Details'..."
-    
-    # Count records that will be affected - looking for exact match or variations
-    details_patterns = ['Details', 'details', 'DETAILS', 'Detail', 'detail', 'DETAIL']
-    
-    licensor_count = 0
-    licensee_count = 0
-    
-    details_patterns.each do |pattern|
-      licensor_count += PdfDocument.where(licensor: pattern).count
-      licensee_count += PdfDocument.where(licensee: pattern).count
-    end
-    
-    # Also check for fields that are just whitespace + Details + whitespace
-    whitespace_details_licensor = PdfDocument.where("TRIM(licensor) IN (?)", details_patterns).count
-    whitespace_details_licensee = PdfDocument.where("TRIM(licensee) IN (?)", details_patterns).count
-    
-    total_affected = PdfDocument.where("TRIM(licensor) IN (?) OR TRIM(licensee) IN (?)", details_patterns, details_patterns).count
-    
-    puts "Records with licensor = 'Details' (or variations): #{whitespace_details_licensor}"
-    puts "Records with licensee = 'Details' (or variations): #{whitespace_details_licensee}"
-    puts "Total records that will be modified: #{total_affected}"
-    
-    if total_affected == 0
-      puts "No records found with licensor or licensee fields containing only 'Details'."
-      next
-    end
-    
-    # Show some examples
-    puts "\nSample records to be updated:"
-    sample_records = PdfDocument.where("TRIM(licensor) IN (?) OR TRIM(licensee) IN (?)", details_patterns, details_patterns).limit(5)
-    sample_records.each do |record|
-      puts "  ID: #{record.id} | File: #{record.filename}"
-      puts "    Licensor: '#{record.licensor}' | Licensee: '#{record.licensee}'"
-    end
-    
-    print "\nDo you want to proceed? (y/N): "
-    response = STDIN.gets.chomp.downcase
-    
-    unless response == 'y' || response == 'yes'
-      puts "Operation cancelled."
-      next
-    end
-    
-    updated_count = 0
-    
-    # Update records with licensor containing only 'Details'
-    PdfDocument.where("TRIM(licensor) IN (?)", details_patterns).find_each do |doc|
-      old_licensor = doc.licensor
-      doc.update(licensor: '')
-      updated_count += 1
-      puts "Updated record ID #{doc.id}: Blanked licensor (was '#{old_licensor}')"
-    end
-    
-    # Update records with licensee containing only 'Details'
-    PdfDocument.where("TRIM(licensee) IN (?)", details_patterns).find_each do |doc|
-      old_licensee = doc.licensee
-      # Only update if we haven't already processed this record for licensor
-      unless doc.licensor.blank?
-        doc.update(licensee: '')
-        updated_count += 1
-      else
-        doc.update(licensee: '')
-      end
-      puts "Updated record ID #{doc.id}: Blanked licensee (was '#{old_licensee}')"
-    end
-    
-    puts "\nCleanup completed!"
-    puts "Total fields blanked: #{updated_count}"
-    
-    # Verify the cleanup
-    remaining_details = PdfDocument.where("TRIM(licensor) IN (?) OR TRIM(licensee) IN (?)", details_patterns, details_patterns).count
-    puts "Remaining records with 'Details' fields: #{remaining_details}"
-  end
-  
-  desc "Blank out licensor and licensee fields containing '(which expression shall mean and include the'"
-  task :blank_expression_fields => :environment do
-    puts "Starting cleanup of licensor and licensee fields containing '(which expression shall mean and include the'..."
-    
-    search_text = "(which expression shall mean and include the"
-    
-    # Count records that will be affected
-    licensor_count = PdfDocument.where("licensor LIKE ?", "%#{search_text}%").count
-    licensee_count = PdfDocument.where("licensee LIKE ?", "%#{search_text}%").count
-    total_affected = PdfDocument.where("licensor LIKE ? OR licensee LIKE ?", "%#{search_text}%", "%#{search_text}%").count
-    
-    puts "Records with licensor containing '#{search_text}': #{licensor_count}"
-    puts "Records with licensee containing '#{search_text}': #{licensee_count}"
-    puts "Total records that will be modified: #{total_affected}"
-    
-    if total_affected == 0
-      puts "No records found with licensor or licensee fields containing '#{search_text}'."
-      next
-    end
-    
-    # Show some examples
-    puts "\nSample records to be updated:"
-    sample_records = PdfDocument.where("licensor LIKE ? OR licensee LIKE ?", "%#{search_text}%", "%#{search_text}%").limit(5)
-    sample_records.each do |record|
-      puts "  ID: #{record.id} | File: #{record.filename}"
-      if record.licensor&.include?(search_text)
-        puts "    Licensor: #{record.licensor.truncate(100)}"
-      end
-      if record.licensee&.include?(search_text)
-        puts "    Licensee: #{record.licensee.truncate(100)}"
-      end
-      puts ""
-    end
-    
-    print "Do you want to proceed? (y/N): "
-    response = STDIN.gets.chomp.downcase
-    
-    unless response == 'y' || response == 'yes'
-      puts "Operation cancelled."
-      next
-    end
-    
-    updated_count = 0
-    
-    # Update records with licensor containing the expression
-    PdfDocument.where("licensor LIKE ?", "%#{search_text}%").find_each do |doc|
-      old_licensor = doc.licensor
-      doc.update(licensor: '')
-      updated_count += 1
-      puts "Updated record ID #{doc.id}: Blanked licensor (contained '#{search_text}')"
-    end
-    
-    # Update records with licensee containing the expression
-    PdfDocument.where("licensee LIKE ?", "%#{search_text}%").find_each do |doc|
-      old_licensee = doc.licensee
-      doc.update(licensee: '')
-      updated_count += 1
-      puts "Updated record ID #{doc.id}: Blanked licensee (contained '#{search_text}')"
-    end
-    
-    puts "\nCleanup completed!"
-    puts "Total fields blanked: #{updated_count}"
-    
-    # Verify the cleanup
-    remaining_expression = PdfDocument.where("licensor LIKE ? OR licensee LIKE ?", "%#{search_text}%", "%#{search_text}%").count
-    puts "Remaining records with '#{search_text}': #{remaining_expression}"
-  end
-  
   private
   
   def process_pdf_file(pdf_document, pdf_path)
@@ -1162,20 +966,17 @@ namespace :pdfs do
       extracted[:licensee] = name unless name.empty?
     end
     
-    # Enhanced fallback extraction if licensor or licensee are empty
+    # Fallback extraction if licensor or licensee are empty
     if extracted[:licensor].blank? || extracted[:licensee].blank?
       # Fallback patterns for licensor
       if extracted[:licensor].blank?
         # Pattern 1: Most specific pattern for "called 'the Licensor'"
         pattern1 = /(Mr\.|Mrs\.|Ms\.|Dr\.)\s*([A-Z][A-Z\s]+?)(?=\s*\([^)]*called\s*"[^"]*Licensor)/i
         
-        # Pattern 2: Extract from "Name:" field in structured format (first occurrence before "HEREINAFTER called 'the Licensor'")
-        pattern2 = /Name:\s*((?:Mr\.|Mrs\.|Ms\.|Dr\.|Mrs\.\/Shrimati\/Miss\.)\s*[A-Z][a-zA-Z\s\.]+?)(?:\s*,|\s*Age|\s*HEREINAFTER.*?called.*?Licensor)/im
+        # Pattern 2: Extract from "Name:" field in structured format  
+        pattern2 = /Name:\s*((?:Mr\.|Mrs\.|Ms\.|Dr\.)\s*[A-Z][a-zA-Z\s\.]+?)(?:\s*,|\s*Age|\s*HEREINAFTER.*?called.*?Licensor)/im
         
-        # Pattern 3: Enhanced pattern for the new format - extract name after "Name:" and before comma/Age
-        pattern3 = /1\)\s*Name:\s*((?:Mr\.|Mrs\.|Ms\.|Dr\.|Mrs\.\/Shrimati\/Miss\.)\s*[A-Z][a-zA-Z\s\.]+?)\s*,\s*Age/im
-        
-        [pattern1, pattern2, pattern3].each do |pattern|
+        [pattern1, pattern2].each do |pattern|
           if match = content.match(pattern)
             name = if match.captures.length >= 2
               (match[1].to_s + ' ' + match[2].to_s).strip.gsub(/\s+/, ' ')
@@ -1183,16 +984,12 @@ namespace :pdfs do
               match[1].to_s.strip.gsub(/\s+/, ' ')
             end
             
-            # Clean up the name - remove extra prefixes and normalize
-            name = name.gsub(/Mrs\.\/Shrimati\/Miss\.\s*/, 'Mrs. ')
-                      .gsub(/\s+/, ' ')
-                      .strip
-            
-            # Validation for the extracted name
+            # Strict validation for the extracted name
             if name.present? && 
-               name.length >= 5 && 
-               name.match?(/^(Mr\.|Mrs\.|Ms\.|Dr\.)\s*[A-Z]/i) &&
-               !name.include?('HEREINAFTER')
+               name.length >= 8 && 
+               name.match?(/^(Mr\.|Mrs\.|Ms\.|Dr\.)\s*[A-Z][a-zA-Z]{2,}/i) &&
+               name.count(' ') >= 1 &&  # Title + name minimum
+               name.split(' ').all? { |word| word.length >= 2 }
               extracted[:licensor] = name
               break
             end
@@ -1207,15 +1004,9 @@ namespace :pdfs do
         
         # Pattern 2: Extract second "Name:" field (for licensee in structured format)
         # Look for Name: after finding first licensor section
-        pattern2 = /HEREINAFTER.*?called.*?Licensor.*?AND.*?Name:\s*((?:Mr\.|Mrs\.|Ms\.|Dr\.|Mrs\.\/Shrimati\/Miss\.)\s*[A-Z][a-zA-Z\s\.]+?)(?:\s*,|\s*Age|\s*HEREINAFTER.*?called.*?Licensee)/im
+        pattern2 = /HEREINAFTER.*?called.*?Licensor.*?AND.*?Name:\s*((?:Mr\.|Mrs\.|Ms\.|Dr\.)\s*[A-Z][a-zA-Z\s\.]+?)(?:\s*,|\s*Age|\s*HEREINAFTER.*?called.*?Licensee)/im
         
-        # Pattern 3: Enhanced pattern for the new format - find second "1) Name:" after "AND"
-        pattern3 = /AND\s+1\)\s*Name:\s*((?:Mr\.|Mrs\.|Ms\.|Dr\.|Mrs\.\/Shrimati\/Miss\.)\s*[A-Z][a-zA-Z\s\.]+?)\s*,\s*Age/im
-        
-        # Pattern 4: Handle multiple licensees format - extract all names after "AND" section
-        pattern4 = /HEREINAFTER.*?called.*?Licensor.*?AND(.*?)HEREINAFTER.*?called.*?Licensees/im
-        
-        [pattern1, pattern2, pattern3].each do |pattern|
+        [pattern1, pattern2].each do |pattern|
           if match = content.match(pattern)
             name = if match.captures.length >= 2
               (match[1].to_s + ' ' + match[2].to_s).strip.gsub(/\s+/, ' ')
@@ -1223,51 +1014,14 @@ namespace :pdfs do
               match[1].to_s.strip.gsub(/\s+/, ' ')
             end
             
-            # Clean up the name - remove extra prefixes and normalize
-            name = name.gsub(/Mrs\.\/Shrimati\/Miss\.\s*/, 'Mrs. ')
-                      .gsub(/\s+/, ' ')
-                      .strip
-            
-            # Validation for the extracted name
+            # Strict validation for the extracted name
             if name.present? && 
-               name.length >= 5 && 
-               name.match?(/^(Mr\.|Mrs\.|Ms\.|Dr\.)\s*[A-Z]/i) &&
-               !name.include?('HEREINAFTER')
+               name.length >= 8 && 
+               name.match?(/^(Mr\.|Mrs\.|Ms\.|Dr\.)\s*[A-Z][a-zA-Z]{2,}/i) &&
+               name.count(' ') >= 1 &&  # Title + name minimum
+               name.split(' ').all? { |word| word.length >= 2 }
               extracted[:licensee] = name
               break
-            end
-          end
-        end
-        
-        # If still no licensee found, try to extract multiple licensees
-        if extracted[:licensee].blank?
-          if match = content.match(pattern4)
-            licensee_section = match[1]
-            # Extract all "Name:" entries from the licensee section
-            name_matches = licensee_section.scan(/\d+\)\s*Name:\s*((?:Mr\.|Mrs\.|Ms\.|Dr\.|Miss)\s*[A-Z][a-zA-Z\s\.]+?)\s*,\s*Age/im)
-            
-            if name_matches.any?
-              licensee_names = name_matches.map do |name_match|
-                name = name_match[0].to_s.strip.gsub(/\s+/, ' ')
-                # Clean up the name
-                name = name.gsub(/Mrs\.\/Shrimati\/Miss\.\s*/, 'Mrs. ')
-                          .gsub(/\s+/, ' ')
-                          .strip
-                
-                # Validate the name
-                if name.present? && 
-                   name.length >= 5 && 
-                   name.match?(/^(Mr\.|Mrs\.|Ms\.|Dr\.|Miss)\s*[A-Z]/i)
-                  name
-                else
-                  nil
-                end
-              end.compact
-              
-              if licensee_names.any?
-                # Join multiple licensees with commas
-                extracted[:licensee] = licensee_names.join(', ')
-              end
             end
           end
         end
@@ -1290,6 +1044,7 @@ namespace :pdfs do
     end
     
     # Fallback: Extract property address from "All that constructed portion" section if not found above
+    if extracted[:address].blank?
     # Fallback: Extract property address from "All that constructed portion" section if not found above
     if extracted[:address].blank?
       address_patterns = [

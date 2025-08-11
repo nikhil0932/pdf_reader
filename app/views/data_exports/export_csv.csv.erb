@@ -14,11 +14,6 @@
       'Start Date',
       'End Date',
       'Agreement Period',
-      'Page Count',
-      'Uploaded At',
-      'Created At',
-      'Updated At',
-      'Content Preview (First 100 chars)',
       'Filtered Data Preview (First 100 chars)'
     ]
     
@@ -35,11 +30,6 @@
         doc.start_date&.strftime('%Y-%m-%d'),
         doc.end_date&.strftime('%Y-%m-%d'),
         doc.agreement_period,
-        doc.page_count,
-        doc.uploaded_at&.strftime('%Y-%m-%d %H:%M:%S'),
-        doc.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-        doc.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
-        doc.content&.truncate(100),
         doc.filtered_data&.truncate(100)
       ]
     end

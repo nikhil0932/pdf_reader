@@ -31,21 +31,26 @@ class PdfDataExtractorService
       # Pattern for "Licensor" without colon
       /licensor\s*\n\s*([^:]+?)(?=\s*\n\s*(?:licensee|address|tenant|owner))/im,
       # Pattern for licensor with address structure
-      /licensor\s*:?\s*([^:]+?)(?=\s*(?:flat|building|address:|licensee:))/im,
-      # Original patterns
-      /licensor[:\s]+([^\n\r]+)/i,
-      /owner[:\s]+([^\n\r]+)/i,
-      /landlord[:\s]+([^\n\r]+)/i,
-      /lessor[:\s]+([^\n\r]+)/i
+      /licensor\s*:?\s*([^:]+?)(?=\s*(?:flat|building|address:|licensee:))/im
     ]
     
     result = extract_by_patterns(patterns)
     
-    # Clean up the extracted text
+    # Clean up the extracted text and validate
     if result
       result = clean_extracted_text(result)
       # Remove common address indicators from licensor name
       result = result.gsub(/\s*(?:flat no\.?|building|road|sector|district|state|pin|pincode).*$/i, '').strip
+      
+      # Validate that this looks like a proper name
+      if result.length < 3 || result.match?(/^(or\s|and\s|information|document|agreement|without|clear)/i)
+        result = nil
+      end
+    end
+    
+    # Fallback extraction if primary extraction failed
+    if result.blank?
+      result = extract_licensor_fallback
     end
     
     result
@@ -59,28 +64,49 @@ class PdfDataExtractorService
       # Pattern for "Licensee" without colon
       /licensee\s*\n\s*([^:]+?)(?=\s*\n\s*(?:licensor|address|owner))/im,
       # Pattern for licensee with address structure
-      /licensee\s*:?\s*([^:]+?)(?=\s*(?:flat|building|address:|licensor:))/im,
-      # Original patterns
-      /licensee[:\s]+([^\n\r]+)/i,
-      /tenant[:\s]+([^\n\r]+)/i,
-      /lessee[:\s]+([^\n\r]+)/i,
-      /occupant[:\s]+([^\n\r]+)/i
+      /licensee\s*:?\s*([^:]+?)(?=\s*(?:flat|building|address:|licensor:))/im
     ]
     
     result = extract_by_patterns(patterns)
     
-    # Clean up the extracted text
+    # Clean up the extracted text and validate
     if result
       result = clean_extracted_text(result)
       # Remove common address indicators from licensee name
       result = result.gsub(/\s*(?:flat no\.?|building|road|sector|district|state|pin|pincode).*$/i, '').strip
+      
+      # Validate that this looks like a proper name
+      if result.length < 3 || result.match?(/^(or\s|and\s|information|document|agreement|without|clear)/i)
+        result = nil
+      end
+    end
+    
+    # Fallback extraction if primary extraction failed
+    if result.blank?
+      result = extract_licensee_fallback
     end
     
     result
   end
 
   def extract_address
-    # Priority 1: Extract from "Property Description Corporation" pattern
+    # Priority 1: Extract from "SCHEDULE I" section with property description
+    schedule_pattern = /SCHEDULE\s+I.*?All\s+that\s+constructed\s+portion\s+being.*?(?=IN\s+WITNESS\s+WHEREOF|$)/im
+    schedule_match = @content.match(schedule_pattern)
+    
+    if schedule_match
+      schedule_text = schedule_match[0]
+      # Extract the detailed property description
+      property_desc_pattern = /All\s+that\s+constructed\s+portion\s+being\s+(.+?)(?=IN\s+WITNESS\s+WHEREOF|$)/im
+      desc_match = schedule_text.match(property_desc_pattern)
+      
+      if desc_match
+        address = clean_extracted_text(desc_match[1])
+        return address if address.present?
+      end
+    end
+    
+    # Priority 2: Extract from "Property Description Corporation" pattern
     property_corp_pattern = /property\s+description\s+corporation\s*:\s*(.+?)(?=\s*(?:licens[eo]r|licensee|agreement|date|period|$))/im
     property_corp_match = @content.match(property_corp_pattern)
     
@@ -89,7 +115,7 @@ class PdfDataExtractorService
       return address if address.present?
     end
     
-    # Priority 2: Extract from "Property Details:" section
+    # Priority 3: Extract from "Property Details:" section
     property_details_match = @content.match(/property\s+details\s*:\s*([^:]+?)(?=\s*(?:licens[eo]r|agreement|date|period|$))/im)
     
     if property_details_match
@@ -97,7 +123,7 @@ class PdfDataExtractorService
       return address if address.present?
     end
     
-    # Priority 3: Fallback to other patterns
+    # Priority 4: Fallback to other patterns
     patterns = [
       # Pattern for complete address after "Address:" (multi-line)
       /address\s*:\s*([^:]+?)(?=\s*(?:licens[eo]r|tenant|owner|agreement|period|$))/im,
@@ -483,6 +509,66 @@ class PdfDataExtractorService
     end
     
     # If no format matches, return nil
+    nil
+  end
+
+  # Fallback extraction methods for licensor and licensee
+  def extract_licensor_fallback
+    # Pattern 1: Most specific pattern for "called 'the Licensor'"
+    pattern1 = /(Mr\.|Mrs\.|Ms\.|Dr\.)\s*([A-Z][A-Z\s]+?)(?=\s*\([^)]*called\s*"[^"]*Licensor)/i
+    
+    # Pattern 2: Extract from "Name:" field in structured format  
+    pattern2 = /Name:\s*((?:Mr\.|Mrs\.|Ms\.|Dr\.)\s*[A-Z][a-zA-Z\s\.]+?)(?:\s*,|\s*Age|\s*HEREINAFTER.*?called.*?Licensor)/im
+    
+    [pattern1, pattern2].each do |pattern|
+      if match = @content.match(pattern)
+        name = if match.captures.length >= 2
+          (match[1].to_s + ' ' + match[2].to_s).strip.gsub(/\s+/, ' ')
+        else
+          match[1].to_s.strip.gsub(/\s+/, ' ')
+        end
+        
+        # Strict validation for the extracted name
+        if name.present? && 
+           name.length >= 8 && 
+           name.match?(/^(Mr\.|Mrs\.|Ms\.|Dr\.)\s*[A-Z][a-zA-Z]{2,}/i) &&
+           name.count(' ') >= 1 &&
+           name.split(' ').all? { |word| word.length >= 2 }
+          return clean_extracted_text(name)
+        end
+      end
+    end
+    
+    nil
+  end
+  
+  def extract_licensee_fallback  
+    # Pattern 1: Most specific pattern for "called 'the Licensee'"
+    pattern1 = /(Mr\.|Mrs\.|Ms\.|Dr\.)\s*([A-Z][a-zA-Z\s]+?)(?=\s*\([^)]*called\s*"[^"]*Licensee)/i
+    
+    # Pattern 2: Extract second "Name:" field (for licensee in structured format)
+    # Look for Name: after finding first licensor section
+    pattern2 = /HEREINAFTER.*?called.*?Licensor.*?AND.*?Name:\s*((?:Mr\.|Mrs\.|Ms\.|Dr\.)\s*[A-Z][a-zA-Z\s\.]+?)(?:\s*,|\s*Age|\s*HEREINAFTER.*?called.*?Licensee)/im
+    
+    [pattern1, pattern2].each do |pattern|
+      if match = @content.match(pattern)
+        name = if match.captures.length >= 2
+          (match[1].to_s + ' ' + match[2].to_s).strip.gsub(/\s+/, ' ')
+        else
+          match[1].to_s.strip.gsub(/\s+/, ' ')
+        end
+        
+        # Strict validation for the extracted name
+        if name.present? && 
+           name.length >= 8 && 
+           name.match?(/^(Mr\.|Mrs\.|Ms\.|Dr\.)\s*[A-Z][a-zA-Z]{2,}/i) &&
+           name.count(' ') >= 1 &&
+           name.split(' ').all? { |word| word.length >= 2 }
+          return clean_extracted_text(name)
+        end
+      end
+    end
+    
     nil
   end
 end
