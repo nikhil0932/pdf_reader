@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_07_31_210000) do
+ActiveRecord::Schema[7.1].define(version: 2025_08_11_000002) do
   create_table "pdf_documents", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.string "title"
     t.text "content"
@@ -27,6 +27,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_07_31_210000) do
     t.string "filename"
     t.date "start_date"
     t.date "end_date"
+    t.string "document_type", default: "LEAVE AND LICENSE AGREEMENT"
   end
 
 end

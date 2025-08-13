@@ -6,7 +6,38 @@ class PdfDataExtractorService
   def extract_all_data
     return {} if @content.blank? || @content.include?("Error processing PDF")
     
-    # Extract period dates
+    # Determine document type first
+    document_type = extract_document_type
+    
+    # Use different extraction methods based on document type
+    if document_type == "NOTARIZED AGREEMENT"
+      extract_notarized_document_data
+    else
+      extract_regular_document_data
+    end
+  end
+
+  private
+
+  def extract_notarized_document_data
+    # Extract period dates for notarized documents
+    period_dates = extract_period_dates
+    
+    {
+      licensor: extract_notarized_licensor,
+      licensee: extract_notarized_licensee,
+      address: extract_address,
+      agreement_date: extract_agreement_date,
+      agreement_period: extract_agreement_period,
+      start_date: period_dates[:start_date],
+      end_date: period_dates[:end_date],
+      document_type: "NOTARIZED AGREEMENT",
+      filtered_data: compile_filtered_data
+    }
+  end
+
+  def extract_regular_document_data
+    # Extract period dates for regular documents
     period_dates = extract_period_dates
     
     {
@@ -17,11 +48,10 @@ class PdfDataExtractorService
       agreement_period: extract_agreement_period,
       start_date: period_dates[:start_date],
       end_date: period_dates[:end_date],
+      document_type: "LEAVE AND LICENSE AGREEMENT",
       filtered_data: compile_filtered_data
     }
   end
-
-  private
 
   def extract_licensor
     # Try specific patterns for the document format
@@ -234,6 +264,85 @@ class PdfDataExtractorService
     result
   end
 
+  def extract_document_type
+    # Check if document contains notarization text
+    notarization_patterns = [
+      /Department\s+of\s+Registration\s+and\s+Stamps\s+Government\s+of\s+Maharashtra/i,
+      /department\s+of\s+registration\s+&\s+stamps/i,
+      /registrar\s+of\s+documents/i,
+      /notarized/i,
+      /notary\s+public/i,
+      /stamp\s+duty/i
+    ]
+    
+    # Check for notarization indicators
+    notarization_patterns.each do |pattern|
+      if @content.match(pattern)
+        return "NOTARIZED AGREEMENT"
+      end
+    end
+    
+    # Default to leave and license agreement
+    "LEAVE AND LICENSE AGREEMENT"
+  end
+
+  # Specialized extraction methods for notarized documents
+  def extract_notarized_licensor
+    # For notarized documents, licensor information is in a structured format
+    # Pattern: "1)Name, PAN: XXXX, Age: XX Years, Gender: Male/Female, Occupation:Others, Mobile No: XXXXXXXXXX, Residing at: ADDRESS through P.O.A NAME"
+    
+    patterns = [
+      # Pattern 1: Extract first person before "HEREINAFTER called the Licensor"
+      /1\)\s*([^,]+),\s*PAN:\s*[^,]+,\s*Age:\s*\d+\s*Years[^)]*?(?=HEREINAFTER\s+called\s+the\s+Licensor)/im,
+      # Pattern 2: Extract name after "1)" and before first comma
+      /1\)\s*([A-Z][a-zA-Z\s]+?),\s*PAN:/im,
+      # Pattern 3: Extract full name between "1)" and "PAN:"
+      /1\)\s*([^,]+)(?=,\s*PAN:)/im
+    ]
+    
+    patterns.each do |pattern|
+      match = @content.match(pattern)
+      if match && match[1]
+        name = clean_extracted_text(match[1])
+        # Validate that this looks like a proper name
+        if name.present? && name.length >= 3 && name.match?(/^[A-Z][a-zA-Z\s]+$/)
+          return name
+        end
+      end
+    end
+    
+    # Fallback to regular extraction
+    extract_licensor
+  end
+
+  def extract_notarized_licensee
+    # For notarized documents, licensee information comes after "AND" section
+    # Pattern: After "AND" look for "1)Name, PAN: XXXX, Age: XX Years..."
+    
+    patterns = [
+      # Pattern 1: Extract person after "AND" section before "HEREINAFTER called the Licensee"
+      /AND\s+1\)\s*([^,]+),\s*PAN:\s*[^,]+,\s*Age:\s*\d+\s*Years[^)]*?(?=HEREINAFTER\s+called\s+the\s+Licensee)/im,
+      # Pattern 2: Extract name after "AND 1)" and before first comma
+      /AND\s+1\)\s*([A-Z][a-zA-Z\s]+?),\s*PAN:/im,
+      # Pattern 3: Extract after AND section
+      /AND\s+1\)\s*([^,]+)(?=,\s*PAN:)/im
+    ]
+    
+    patterns.each do |pattern|
+      match = @content.match(pattern)
+      if match && match[1]
+        name = clean_extracted_text(match[1])
+        # Validate that this looks like a proper name
+        if name.present? && name.length >= 3 && name.match?(/^[A-Z][a-zA-Z\s]+$/)
+          return name
+        end
+      end
+    end
+    
+    # Fallback to regular extraction
+    extract_licensee
+  end
+
   def extract_by_patterns(patterns)
     patterns.each do |pattern|
       match = @content.match(pattern)
@@ -252,16 +361,22 @@ class PdfDataExtractorService
   def clean_extracted_text(text)
     return nil if text.blank?
     
+    # Remove all types of whitespace characters including tabs, non-breaking spaces
+    text = text.gsub(/[\u00A0\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]/, ' ')
+    
     # Replace multiple newlines and spaces with single space
     text = text.gsub(/\n+/, ' ').strip
     text = text.gsub(/\s+/, ' ')
+    
+    # Remove leading/trailing whitespace and clean up internal whitespace
+    text = text.strip.squeeze(' ')
     
     # Clean up common prefixes and suffixes
     text = text.gsub(/^(mr\.|mrs\.|ms\.|dr\.)\s*/i, '\1 ')
     text = text.gsub(/[:\-_]+$/, '').strip
     
-    # Remove empty lines and trim
-    text = text.gsub(/^\s*\n/, '').gsub(/\n\s*$/, '').strip
+    # Final cleanup - remove any remaining extra whitespace
+    text = text.strip.squeeze(' ')
     
     text.present? ? text : nil
   end
